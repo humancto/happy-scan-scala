@@ -14,8 +14,10 @@ const RUNTIME_PATTERNS: &[(&str, &str)] = &[
     ("com.typesafe.play", "filters-helpers"),
     ("com.typesafe.play", "play-logback"),
     ("com.typesafe.play", "play-jdbc-evolutions"),
+    ("com.typesafe.play", "play-ehcache"),
+    ("com.typesafe.play", "play-caffeine-cache"),
     ("ch.qos.logback", ""), // logging backend
-    ("org.slf4j", "slf4j-api"),
+    ("org.slf4j", ""),      // logging facade
     ("net.logstash.logback", ""),
     ("com.typesafe", "config"), // loaded via ConfigFactory at runtime
     ("org.scala-lang", ""),     // stdlib
@@ -31,6 +33,16 @@ const RUNTIME_PATTERNS: &[(&str, &str)] = &[
     ("org.scalameta", ""), // compiler plugins
     ("org.wartremover", ""),
     ("com.github.ghik", ""),
+    ("com.edulify", "play-hikaricp"), // JDBC connection pool — runtime
+    ("com.typesafe.play", "play-jdbc"), // JDBC runtime wiring
+    ("org.ehcache", ""),              // cache runtime
+    ("net.codingwell", "scala-guice"), // Guice Scala bindings
+    ("org.scala-sbt", ""),            // SBT itself
+    ("com.typesafe.play", "play-server"),
+    ("com.typesafe.play", "play-netty-server"),
+    ("com.typesafe.play", "play-akka-http-server"),
+    ("org.flywaydb", ""),  // DB migrations — runtime
+    ("org.liquibase", ""), // DB migrations — runtime
 ];
 
 /// Expanded mapping of Maven coordinates to Java/Scala package prefixes AND
@@ -522,6 +534,201 @@ fn dep_profile(org: &str, name: &str) -> DepProfile {
             &["jakarta.inject"],
             &["Inject", "Named", "Singleton", "Provider"],
         ),
+        // --- Additional profiles to reduce false positives ---
+        (
+            "mysql",
+            "mysql-connector",
+            &["com.mysql", "java.sql"],
+            &[
+                "DriverManager",
+                "Connection",
+                "PreparedStatement",
+                "ResultSet",
+                "MysqlDataSource",
+            ],
+        ),
+        (
+            "joda-time",
+            "joda-time",
+            &["org.joda.time"],
+            &[
+                "DateTime",
+                "LocalDate",
+                "LocalDateTime",
+                "DateTimeFormat",
+                "DateTimeZone",
+                "Duration",
+                "Period",
+                "Instant",
+            ],
+        ),
+        (
+            "org.joda",
+            "joda-convert",
+            &["org.joda.convert"],
+            &["DateTime", "LocalDate", "DateTimeFormat"], // typically pulled in with joda-time
+        ),
+        (
+            "commons-lang",
+            "commons-lang",
+            &["org.apache.commons.lang"],
+            &[
+                "StringUtils",
+                "ArrayUtils",
+                "RandomStringUtils",
+                "NumberUtils",
+                "BooleanUtils",
+                "ObjectUtils",
+                "WordUtils",
+                "StringEscapeUtils",
+            ],
+        ),
+        (
+            "commons-httpclient",
+            "commons-httpclient",
+            &["org.apache.commons.httpclient", "org.apache.http"],
+            &[
+                "HttpClient",
+                "GetMethod",
+                "PostMethod",
+                "HttpMethod",
+                "HttpStatus",
+                "HttpConnection",
+            ],
+        ),
+        (
+            "commons-net",
+            "commons-net",
+            &["org.apache.commons.net"],
+            &["FTPClient", "FTPSClient", "TelnetClient", "NTPUDPClient"],
+        ),
+        (
+            "com.sksamuel",
+            "scrimage",
+            &["com.sksamuel.scrimage"],
+            &["Image", "ImmutableImage", "ScaleMethod", "Filter", "Canvas"],
+        ),
+        (
+            "com.hierynomus",
+            "sshj",
+            &["net.schmizz.sshj", "com.hierynomus"],
+            &["SSHClient", "SFTPClient", "SCPFileTransfer", "Connection"],
+        ),
+        (
+            "ch.hsr",
+            "geohash",
+            &["ch.hsr.geohash"],
+            &["GeoHash", "WGS84Point", "BoundingBox"],
+        ),
+        (
+            "com.rockymadden",
+            "stringmetric",
+            &["com.rockymadden.stringmetric"],
+            &[
+                "JaroWinklerMetric",
+                "DiceSorensenMetric",
+                "LevenshteinMetric",
+                "JaroWinkler",
+            ],
+        ),
+        (
+            "com.softwaremill.sttp",
+            "",
+            &["com.softwaremill.sttp", "sttp.client"],
+            &[
+                "SttpBackend",
+                "HttpURLConnectionBackend",
+                "AsyncHttpClientFutureBackend",
+                "basicRequest",
+                "Response",
+            ],
+        ),
+        (
+            "org.typelevel",
+            "cats",
+            &[
+                "cats",
+                "cats.effect",
+                "cats.implicits",
+                "cats.syntax",
+                "cats.data",
+            ],
+            &[
+                "Monad",
+                "Functor",
+                "Applicative",
+                "IO",
+                "EitherT",
+                "OptionT",
+                "Validated",
+                "NonEmptyList",
+            ],
+        ),
+        (
+            "org.jsoup",
+            "jsoup",
+            &["org.jsoup"],
+            &["Jsoup", "Document", "Element", "Elements", "Connection"],
+        ),
+        (
+            "com.atlassian.commonmark",
+            "commonmark",
+            &["org.commonmark"],
+            &["Parser", "HtmlRenderer", "Node"],
+        ),
+        (
+            "net.sourceforge.htmlcleaner",
+            "htmlcleaner",
+            &["org.htmlcleaner"],
+            &["HtmlCleaner", "TagNode", "CleanerProperties"],
+        ),
+        (
+            "com.pauldijou",
+            "jwt",
+            &["pdi.jwt"],
+            &["Jwt", "JwtAlgorithm", "JwtClaim", "JwtHeader", "JwtToken"],
+        ),
+        (
+            "com.github.blemale",
+            "scaffeine",
+            &["com.github.blemale.scaffeine"],
+            &["Scaffeine", "Cache", "LoadingCache", "AsyncLoadingCache"],
+        ),
+        (
+            "com.braintreepayments",
+            "",
+            &["com.braintreegateway"],
+            &[
+                "BraintreeGateway",
+                "Transaction",
+                "CustomerRequest",
+                "CreditCard",
+                "Result",
+            ],
+        ),
+        (
+            "com.siftscience",
+            "",
+            &["com.siftscience"],
+            &["SiftClient", "EventRequest", "FieldSet"],
+        ),
+        (
+            "com.jcraft",
+            "jsch",
+            &["com.jcraft.jsch"],
+            &["JSch", "Session", "Channel", "ChannelSftp", "ChannelExec"],
+        ),
+        (
+            "org.bouncycastle",
+            "bcpg",
+            &["org.bouncycastle.openpgp", "org.bouncycastle.bcpg"],
+            &[
+                "PGPPublicKey",
+                "PGPSecretKey",
+                "PGPSignature",
+                "PGPEncryptedDataGenerator",
+            ],
+        ),
     ];
 
     for (porg, pname, pkgs, syms) in profiles {
@@ -558,10 +765,11 @@ struct FileAnalysis {
     body_used_coords: HashMap<String, Vec<String>>, // coord → symbols found
 }
 
-/// Full deep usage scan: 3 passes per file
+/// Full deep usage scan: 4 passes per file
 /// Pass 1: collect all imports
 /// Pass 2: collect all body-level symbol references
 /// Pass 3: cross-reference against dep profiles
+/// Pass 4: fallback artifact-name grep for deps with no profile matches
 pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport>> {
     // Build profile map for all deps
     let mut dep_profiles: Vec<(String, Dependency, DepProfile)> = Vec::new();
@@ -574,7 +782,11 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
     // Body symbol regex: matches CamelCase identifiers (class names, objects)
     let symbol_re = Regex::new(r"\b([A-Z][a-zA-Z0-9]+)\b")?;
 
+    // Pre-read ALL source files once (scala, java, conf) for fallback searches
+    let mut all_source_contents: Vec<(String, String)> = Vec::new(); // (path, content)
     let mut file_analyses: Vec<FileAnalysis> = Vec::new();
+
+    let scannable_extensions = ["scala", "java", "conf", "xml", "properties"];
 
     for entry in WalkDir::new(root)
         .into_iter()
@@ -586,17 +798,23 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
                 s == "target" || s == ".git" || s == ".metals" || s == ".bsp"
             }) && p
                 .extension()
-                .map_or(false, |ext| ext == "scala" || ext == "java")
+                .map_or(false, |ext| scannable_extensions.iter().any(|e| ext == *e))
         })
     {
         let path = entry.path();
-        let content = match fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
+        if let Ok(content) = fs::read_to_string(path) {
+            all_source_contents.push((path.to_string_lossy().to_string(), content));
+        }
+    }
+
+    // Now iterate only scala/java files for import/symbol analysis
+    for (path_str, content) in &all_source_contents {
+        if !(path_str.ends_with(".scala") || path_str.ends_with(".java")) {
+            continue;
+        }
 
         let mut analysis = FileAnalysis {
-            path: path.to_string_lossy().to_string(),
+            path: path_str.clone(),
             imported_coords: HashSet::new(),
             body_used_coords: HashMap::new(),
         };
@@ -716,6 +934,38 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
             }
         }
 
+        // Pass 4: Fallback artifact-name grep for deps with no profile hits.
+        // If neither imports nor symbols matched via profiles, search ALL source files
+        // (including .conf, .xml, .properties) for the artifact name, org name, or
+        // CamelCase variant. This catches internal deps, config-wired deps, and
+        // libraries we don't have explicit profiles for.
+        let mut fallback_hit = false;
+        if import_files.is_empty() && usage_files.is_empty() {
+            let search_terms = build_fallback_search_terms(&dep.org, &dep.name);
+            'outer: for (fpath, fcontent) in &all_source_contents {
+                // Skip build.sbt/lock.sbt themselves — a dep referencing itself in
+                // the build file doesn't mean it's *used* in application code
+                let fname = fpath.rsplit('/').next().unwrap_or(fpath);
+                if fname == "build.sbt"
+                    || fname.ends_with(".sbt.lock")
+                    || fname == "lock.sbt"
+                    || fname == "plugins.sbt"
+                    || fname.ends_with("Dependencies.scala")
+                {
+                    continue;
+                }
+                for term in &search_terms {
+                    if term.len() >= 3 && fcontent.contains(term.as_str()) {
+                        usage_files.push(fpath.clone());
+                        all_symbols.insert(format!("[fallback:{}]", term));
+                        total_usage += 1;
+                        fallback_hit = true;
+                        break 'outer;
+                    }
+                }
+            }
+        }
+
         let mut symbols_found: Vec<String> = all_symbols.into_iter().collect();
         symbols_found.sort();
 
@@ -748,6 +998,45 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
     });
 
     Ok(reports)
+}
+
+/// Build search terms from an artifact's org and name for fallback grep.
+/// Generates variations like CamelCase, package-style, and raw name matches.
+fn build_fallback_search_terms(org: &str, name: &str) -> Vec<String> {
+    let mut terms: Vec<String> = Vec::new();
+
+    // Raw artifact name (exact match for internal deps like "donkeytron", "vendorutils")
+    if name.len() >= 4 {
+        terms.push(name.to_string());
+    }
+
+    // CamelCase: "catalog-service-client" -> "CatalogServiceClient"
+    let camel: String = name
+        .split(|c: char| c == '-' || c == '_' || c == '.')
+        .filter(|s| !s.is_empty())
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().to_string() + &c.as_str().to_lowercase(),
+            }
+        })
+        .collect();
+    if camel.len() >= 4 && camel != name {
+        terms.push(camel);
+    }
+
+    // Package-style from org: "com.atomtickets" -> "com.atomtickets"
+    // Check for org prefix in imports
+    if org.contains('.') && org.len() >= 5 {
+        terms.push(org.to_string());
+    }
+
+    // For deps with org that looks like a Java package, try org.name as import prefix
+    // e.g. "com.siftscience:sift-java" -> check for "com.siftscience"
+    // Already covered by org above
+
+    terms
 }
 
 /// Strip string literals and line comments to reduce false symbol matches
