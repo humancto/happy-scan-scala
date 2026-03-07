@@ -14,3 +14,6 @@ Thumbs.db
 
 # Cache
 .cache/
+
+# Integration notes
+*_integration.txt

@@ -257,7 +257,18 @@ fn sanitize_cache_key(key: &str) -> String {
 }
 
 fn parse_version_loose(v: &str) -> Option<Version> {
-    let cleaned = v.trim().split('+').next().unwrap_or(v).trim();
+    let trimmed = v.trim();
+    // Handle SBT dynamic versions early, before any splitting
+    if trimmed == "latest.release" || trimmed == "latest.integration" {
+        return None;
+    }
+    // "2.3.+" -> "2.3", "1.+" -> "1" — treat as minimum version in range
+    let trimmed = if trimmed.ends_with(".+") {
+        &trimmed[..trimmed.len() - 2]
+    } else {
+        trimmed
+    };
+    let cleaned = trimmed.split('+').next().unwrap_or(trimmed).trim();
     // Try direct parse
     if let Ok(sv) = Version::parse(cleaned) {
         return Some(sv);

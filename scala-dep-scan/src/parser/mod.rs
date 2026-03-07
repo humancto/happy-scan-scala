@@ -176,6 +176,14 @@ pub fn discover_sbt_files(root: &Path) -> Result<ParsedProject> {
             project.lock_files.push(path.clone());
         } else if fname == "Build.scala" {
             build_scala_files.push(path);
+        } else if fname.ends_with(".scala") {
+            // Scan .scala files in project/ directories (e.g. project/Dependencies.scala)
+            // These commonly define libraryDependencies in SBT multi-module builds
+            if let Some(parent) = entry.path().parent() {
+                if parent.file_name().map_or(false, |n| n == "project") {
+                    project.build_files.push(path);
+                }
+            }
         }
     }
 
