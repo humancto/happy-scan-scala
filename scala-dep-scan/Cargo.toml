@@ -1,0 +1,27 @@
+[package]
+name = "scala-dep-scan"
+version = "0.1.0"
+edition = "2021"
+description = "Dependency risk scanner for Scala/Play projects"
+
+[[bin]]
+name = "scala-dep-scan"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "=4.4.18", features = ["derive"] }
+colored = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir = "2"
+petgraph = "0.6"
+regex = "1"
+indicatif = "=0.17.7"
+semver = "1"
+anyhow = "1"
+serde_yaml = "0.9"
+ureq = { version = "2", features = ["json"] }
+
+[profile.release]
+opt-level = 3
+

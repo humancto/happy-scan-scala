@@ -1,0 +1,16 @@
+# Build artifacts
+target/
+scala-dep-scan-linux-x86_64
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/

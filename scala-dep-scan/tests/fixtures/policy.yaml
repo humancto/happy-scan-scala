@@ -1,0 +1,13 @@
+policies:
+  - name: "no-ancient-deps"
+    rule: "version_age_months > 36"
+    severity: high
+    message: "Dependencies must be updated within 3 years"
+  - name: "no-pre-release"
+    rule: "version =~ /^0\\./"
+    severity: medium
+    message: "Pre-release versions not allowed in production"
+  - name: "no-gpl"
+    rule: "license == GPL-3.0"
+    severity: critical
+    message: "GPL-3.0 licensed dependencies are not permitted"

@@ -1,0 +1,12 @@
+version: 1
+severity_threshold: medium
+ignore:
+  - coord: "com.typesafe.play:play-json"
+    reason: "Migration scheduled for Q2"
+    expires: "2099-12-31"
+  - cve: "CVE-2015-6420"
+    reason: "Not exploitable in our deployment"
+    expires: "2099-12-31"
+  - coord: "commons-lang:commons-lang"
+    reason: "Expired ignore"
+    expires: "2020-01-01"
