@@ -27,12 +27,95 @@ pub fn print_header() {
     println!();
 }
 
+/// Count dependencies from private/internal orgs that can't be scanned against public vuln DBs
+pub fn count_private_deps(deps: &[Dependency]) -> usize {
+    deps.iter().filter(|d| is_private_org(&d.org)).count()
+}
+
+fn is_private_org(org: &str) -> bool {
+    // Well-known public org prefixes
+    let public_prefixes = [
+        "org.apache",
+        "com.google",
+        "com.typesafe",
+        "io.netty",
+        "com.fasterxml",
+        "org.scala-lang",
+        "org.slf4j",
+        "ch.qos",
+        "org.postgresql",
+        "mysql",
+        "com.amazonaws",
+        "software.amazon",
+        "org.mongodb",
+        "redis.",
+        "io.circe",
+        "org.http4s",
+        "org.typelevel",
+        "com.softwaremill",
+        "org.specs2",
+        "org.scalatest",
+        "org.mockito",
+        "junit",
+        "com.github",
+        "io.github",
+        "org.yaml",
+        "org.bouncycastle",
+        "commons-",
+        "org.xerial",
+        "com.zaxxer",
+        "org.flywaydb",
+        "org.liquibase",
+        "com.h2database",
+        "org.eclipse",
+        "javax.",
+        "jakarta.",
+        "io.spray",
+        "com.lightbend",
+        "org.playframework",
+        "org.webjars",
+        "io.undertow",
+        "org.jboss",
+        "io.dropwizard",
+        "com.squareup",
+        "io.grpc",
+        "com.twitter",
+        "org.json4s",
+        "io.argonaut",
+        "com.lihaoyi",
+        "dev.zio",
+        "org.scalaz",
+        "com.chuusai",
+        "org.tpolecat",
+        "co.fs2",
+        "com.datastax",
+        "org.apache",
+        "org.jetbrains",
+        "com.oracle",
+        "io.prometheus",
+        "io.micrometer",
+        "io.opentelemetry",
+        "org.ehcache",
+        "com.jcraft",
+        "org.cvogt",
+        "com.hierynomus",
+        "com.rockymadden",
+        "org.sangria",
+        "com.pauldijou",
+        "org.bitbucket",
+        "com.atlassian",
+        "net.logstash",
+    ];
+    !public_prefixes.iter().any(|p| org.starts_with(p))
+}
+
 pub fn print_summary(
     direct_count: usize,
     transitive_count: usize,
     risk_flags: &[RiskFlag],
     project_root: &str,
     ignored_count: usize,
+    private_dep_count: usize,
 ) {
     println!("{} {}", "Project:".bold(), project_root.yellow());
     println!(
@@ -41,6 +124,16 @@ pub fn print_summary(
         direct_count.to_string().cyan(),
         transitive_count.to_string().dimmed()
     );
+    if private_dep_count > 0 {
+        println!(
+            "{}",
+            format!(
+                "  ℹ  {} deps from private/internal orgs — not scannable against public vuln databases",
+                private_dep_count
+            )
+            .dimmed()
+        );
+    }
 
     let critical = risk_flags
         .iter()
@@ -223,19 +316,35 @@ pub fn print_json_report(
     code_refs: &HashMap<String, Vec<CodeReference>>,
     graph: &DepGraph,
     ignored_count: usize,
+    usage_reports: &[crate::types::DepUsageReport],
 ) {
+    use crate::types::UsageVerdict;
+    let private_count = count_private_deps(direct) + count_private_deps(transitive);
+    let unused_count = usage_reports
+        .iter()
+        .filter(|r| r.verdict == UsageVerdict::Unused)
+        .count();
+    let dead_import_count = usage_reports
+        .iter()
+        .filter(|r| r.verdict == UsageVerdict::DeadImport)
+        .count();
     let report = serde_json::json!({
         "summary": {
             "direct_deps": direct.len(),
             "transitive_deps": transitive.len(),
             "total_flags": flags.len(),
             "ignored_flags": ignored_count,
+            "private_deps": private_count,
+            "private_deps_note": if private_count > 0 { "Private/internal dependencies cannot be scanned against public vulnerability databases" } else { "" },
             "critical": flags.iter().filter(|f| f.severity == Severity::Critical).count(),
             "high": flags.iter().filter(|f| f.severity == Severity::High).count(),
             "medium": flags.iter().filter(|f| f.severity == Severity::Medium).count(),
             "low": flags.iter().filter(|f| f.severity == Severity::Low).count(),
+            "unused_deps": unused_count,
+            "dead_import_deps": dead_import_count,
         },
         "risk_flags": flags,
+        "dependency_usage": usage_reports,
         "code_references": code_refs,
         "graph": serde_json::from_str::<serde_json::Value>(&graph.to_json()).unwrap_or_default(),
     });

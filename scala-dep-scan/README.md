@@ -93,7 +93,7 @@ scala-dep-scan . -q -s critical
 
 Three-tier vulnerability detection:
 
-1. **Embedded database** - 20+ known-bad dependencies (Log4Shell, Spring4Shell, Jackson deserialization, commons-collections RCE, etc.)
+1. **Embedded database** - 80+ known-bad dependencies (Log4Shell, Spring4Shell, Jackson deserialization, commons-collections RCE, H2 RCE, Text4Shell, XStream, Jetty, and many more)
 2. **Staleness heuristics** - Pre-release versions, date-versioned artifacts, deprecated packages
 3. **OSV.dev API** - Live advisory lookup against the Open Source Vulnerability database (`--osv` flag)
 
@@ -340,8 +340,24 @@ Color-coded ASCII tree + risk findings with CVE IDs, fix suggestions, and code r
 
 ```json
 {
-  "summary": { "critical": 3, "high": 5, "medium": 2, "low": 4 },
+  "summary": {
+    "direct_deps": 54,
+    "transitive_deps": 0,
+    "total_flags": 10,
+    "critical": 4,
+    "high": 1,
+    "medium": 1,
+    "low": 4,
+    "unused_deps": 12,
+    "dead_import_deps": 3,
+    "private_deps": 8,
+    "private_deps_note": "Private/internal dependencies cannot be scanned against public vulnerability databases"
+  },
   "risk_flags": [...],
+  "dependency_usage": [
+    {"coord": "com.example:lib", "verdict": "Unused", "usage_count": 0},
+    {"coord": "com.example:used-lib", "verdict": "Active", "usage_count": 15, "symbols_found": ["Json", "Reads"]}
+  ],
   "code_references": { "org:name": [...] },
   "graph": { "nodes": [...], "edges": [...] }
 }
@@ -389,21 +405,22 @@ tests/
 
 ## Risk Database
 
-Covers:
+80+ entries covering the most critical JVM vulnerabilities. Updated periodically.
 
-- Play Framework (RCE, CSRF)
-- Akka HTTP (request smuggling, DoS)
-- Log4j / Log4Shell (RCE)
-- Spring4Shell (RCE)
-- Jackson (deserialization)
-- commons-collections (Java deserialization RCE)
-- Netty (request smuggling)
-- SnakeYAML (DoS, RCE)
-- PostgreSQL driver (SQL injection)
-- MySQL connector (unauthorized access)
-- Guava (path traversal)
-- Bouncy Castle (crypto weaknesses)
-- And more via OSV.dev API
+| Category            | Libraries                                                       | Key CVEs                       |
+| ------------------- | --------------------------------------------------------------- | ------------------------------ |
+| **Frameworks**      | Play Framework, Spring, Akka HTTP                               | CVE-2019-17598, CVE-2022-22965 |
+| **Logging**         | Log4j (Log4Shell), Logback                                      | CVE-2021-44228, CVE-2023-6378  |
+| **Serialization**   | Jackson, XStream, SnakeYAML, Kryo                               | CVE-2020-36518, CVE-2021-21351 |
+| **Apache Commons**  | collections, text (Text4Shell), compress, fileupload, beanutils | CVE-2015-7501, CVE-2022-42889  |
+| **HTTP/Networking** | Netty, Jetty, OkHttp, HttpClient, Undertow                      | CVE-2021-43797, CVE-2023-26048 |
+| **Databases**       | MySQL, PostgreSQL, H2 (RCE), SQLite                             | CVE-2021-42392, CVE-2022-21724 |
+| **Crypto**          | BouncyCastle, Apache Shiro, Nimbus JOSE                         | CVE-2020-26939, CVE-2023-46749 |
+| **XML/Templating**  | dom4j, Woodstox, Velocity, FreeMarker                           | CVE-2020-10683, CVE-2020-7009  |
+
+Plus live lookups via **OSV.dev API** for real-time advisory data.
+
+> **Private dependencies**: Internal/private org dependencies (e.g. `com.yourcompany:*`) are detected and reported but cannot be scanned against public vulnerability databases. The tool clearly marks these in the output.
 
 ## Contributing
 

@@ -121,19 +121,19 @@
   },
   {
     "org": "com.typesafe.akka",
-    "name": "akka-http-core",
-    "risky_below": "10.2.0",
-    "reason": "HTTP/2 DoS and request smuggling vulnerabilities",
+    "name": "akka-http",
+    "risky_below": "10.2.7",
+    "reason": "HTTP request smuggling, stack exhaustion from parsing headers, and HTTP/2 DoS vulnerabilities",
     "severity": "high",
-    "cve_ids": ["CVE-2021-42697", "CVE-2020-26238"]
+    "cve_ids": ["CVE-2021-23339", "CVE-2023-44487"]
   },
   {
     "org": "com.typesafe.akka",
     "name": "akka-actor",
-    "risky_below": "2.6.0",
-    "reason": "ClassLoader exposure in certain configurations",
+    "risky_below": "2.8.6",
+    "reason": "Credentials leaked to logs via environment variable values in config",
     "severity": "medium",
-    "cve_ids": []
+    "cve_ids": ["CVE-2023-45865"]
   },
   {
     "org": "org.postgresql",
@@ -158,5 +158,541 @@
     "reason": "Improper access control",
     "severity": "medium",
     "cve_ids": ["CVE-2023-32697"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-text",
+    "risky_below": "1.10.0",
+    "reason": "Text4Shell - RCE via StringSubstitutor variable interpolation (CVSS 9.8)",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-42889"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-compress",
+    "risky_below": "1.26.0",
+    "reason": "DoS via out-of-memory in Pack200, infinite loop in DUMP files, and crafted TAR files",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-26308", "CVE-2024-25710", "CVE-2023-42503"]
+  },
+  {
+    "org": "commons-beanutils",
+    "name": "commons-beanutils",
+    "risky_below": "1.9.4",
+    "reason": "Suppresses access to class property allowing ClassLoader access and potential RCE",
+    "severity": "high",
+    "cve_ids": ["CVE-2019-10086"]
+  },
+  {
+    "org": "commons-fileupload",
+    "name": "commons-fileupload",
+    "risky_below": "1.5",
+    "reason": "DoS via unlimited number of request parts in multipart upload",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-24998"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-configuration2",
+    "risky_below": "2.8.0",
+    "reason": "RCE via script, dns, and url interpolators in default Lookup instances (CVSS 9.8)",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-33980"]
+  },
+  {
+    "org": "com.thoughtworks.xstream",
+    "name": "xstream",
+    "risky_below": "1.4.20",
+    "reason": "Multiple RCE via deserialization; versions before 1.4.18 use insecure blacklist by default",
+    "severity": "critical",
+    "cve_ids": ["CVE-2021-39144", "CVE-2021-39139", "CVE-2021-39141"]
+  },
+  {
+    "org": "com.google.code.gson",
+    "name": "gson",
+    "risky_below": "2.8.9",
+    "reason": "Deserialization of untrusted data via writeReplace() leading to DoS",
+    "severity": "high",
+    "cve_ids": ["CVE-2022-25647"]
+  },
+  {
+    "org": "com.google.protobuf",
+    "name": "protobuf-java",
+    "risky_below": "3.25.5",
+    "reason": "DoS via stack overflow when parsing nested groups as unknown fields",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-7254"]
+  },
+  {
+    "org": "com.esotericsoftware",
+    "name": "kryo",
+    "risky_below": "5.0.0",
+    "reason": "Deserialization gadgets exploit when all unregistered classes are resolved on demand",
+    "severity": "high",
+    "cve_ids": ["CVE-2020-5413"]
+  },
+  {
+    "org": "org.apache.avro",
+    "name": "avro",
+    "risky_below": "1.11.4",
+    "reason": "RCE via arbitrary code execution during schema parsing (CVSS 9.3)",
+    "severity": "critical",
+    "cve_ids": ["CVE-2024-47561", "CVE-2023-39410"]
+  },
+  {
+    "org": "org.apache.httpcomponents",
+    "name": "httpclient",
+    "risky_below": "4.5.13",
+    "reason": "Misinterpretation of malformed authority component in request URIs",
+    "severity": "medium",
+    "cve_ids": ["CVE-2020-13956"]
+  },
+  {
+    "org": "com.squareup.okhttp3",
+    "name": "okhttp",
+    "risky_below": "4.9.2",
+    "reason": "Information disclosure and certificate pinning bypass vulnerabilities",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-0833"]
+  },
+  {
+    "org": "org.asynchttpclient",
+    "name": "async-http-client",
+    "risky_below": "2.12.4",
+    "reason": "Cookie replacement vulnerability in CookieStore allowing authentication bypass",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-53990"]
+  },
+  {
+    "org": "org.eclipse.jetty",
+    "name": "jetty-server",
+    "risky_below": "9.4.51",
+    "reason": "Multipart DoS, cookie exfiltration, and HTTP/2 resource exhaustion",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-26048", "CVE-2023-26049", "CVE-2024-22201"]
+  },
+  {
+    "org": "org.eclipse.jetty",
+    "name": "jetty-http",
+    "risky_below": "9.4.51",
+    "reason": "Cookie parsing vulnerability allowing cookie exfiltration",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-26049"]
+  },
+  {
+    "org": "org.apache.tomcat.embed",
+    "name": "tomcat-embed-core",
+    "risky_below": "9.0.83",
+    "reason": "HTTP request smuggling via improper trailer header parsing",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-46589"]
+  },
+  {
+    "org": "org.apache.tomcat",
+    "name": "tomcat-catalina",
+    "risky_below": "9.0.83",
+    "reason": "HTTP request smuggling via improper trailer header parsing",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-46589"]
+  },
+  {
+    "org": "io.undertow",
+    "name": "undertow-core",
+    "risky_below": "2.3.15",
+    "reason": "DoS via chunked response hang and path traversal vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-5971", "CVE-2024-1459"]
+  },
+  {
+    "org": "com.h2database",
+    "name": "h2",
+    "risky_below": "2.0.206",
+    "reason": "Critical unauthenticated RCE via JNDI in H2 console (CVSS 9.8)",
+    "severity": "critical",
+    "cve_ids": ["CVE-2021-42392"]
+  },
+  {
+    "org": "org.bouncycastle",
+    "name": "bcprov-jdk18on",
+    "risky_below": "1.78",
+    "reason": "LDAP injection and infinite loop in Ed25519 verification",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-33201", "CVE-2024-30172"]
+  },
+  {
+    "org": "org.bouncycastle",
+    "name": "bcpkix-jdk",
+    "risky_below": "1.78",
+    "reason": "LDAP injection via X.500 name processing and certificate validation issues",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-33201"]
+  },
+  {
+    "org": "org.apache.shiro",
+    "name": "shiro",
+    "risky_below": "1.13.0",
+    "reason": "Path traversal leading to authentication bypass when used with web frameworks",
+    "severity": "critical",
+    "cve_ids": ["CVE-2023-34478", "CVE-2023-46750", "CVE-2023-46749"]
+  },
+  {
+    "org": "com.nimbusds",
+    "name": "nimbus-jose-jwt",
+    "risky_below": "9.37.4",
+    "reason": "DoS via uncontrolled recursion in deeply nested JSON objects in JWT claims",
+    "severity": "high",
+    "cve_ids": ["CVE-2025-53864"]
+  },
+  {
+    "org": "org.springframework.security",
+    "name": "spring-security",
+    "risky_below": "6.2.3",
+    "reason": "Broken access control with AuthenticatedVoter allowing unauthorized access",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-22257"]
+  },
+  {
+    "org": "ch.qos.logback",
+    "name": "logback-classic",
+    "risky_below": "1.2.13",
+    "reason": "DoS via serialization attack on logback receiver component (CVSS 7.1)",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-6378"]
+  },
+  {
+    "org": "ch.qos.logback",
+    "name": "logback-core",
+    "risky_below": "1.2.13",
+    "reason": "DoS via serialization attack on logback receiver component (CVSS 7.1)",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-6378"]
+  },
+  {
+    "org": "org.apache.poi",
+    "name": "poi",
+    "risky_below": "5.2.1",
+    "reason": "DoS via out-of-memory in HMEF package when processing TNEF files",
+    "severity": "medium",
+    "cve_ids": ["CVE-2022-26336"]
+  },
+  {
+    "org": "org.apache.tika",
+    "name": "tika-core",
+    "risky_below": "2.9.1",
+    "reason": "XXE vulnerability in PDF parsing allowing information disclosure (CVSS 10.0)",
+    "severity": "critical",
+    "cve_ids": ["CVE-2025-66516"]
+  },
+  {
+    "org": "org.hibernate",
+    "name": "hibernate-validator",
+    "risky_below": "6.2.0.Final",
+    "reason": "XSS via SafeHtml validator bypass allowing HTML injection",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-1932"]
+  },
+  {
+    "org": "org.apache.velocity",
+    "name": "velocity-engine-core",
+    "risky_below": "2.3",
+    "reason": "RCE via arbitrary code execution when processing untrusted Velocity templates",
+    "severity": "critical",
+    "cve_ids": ["CVE-2020-13936"]
+  },
+  {
+    "org": "org.apache.velocity",
+    "name": "velocity",
+    "risky_below": "99.0.0",
+    "reason": "Unmaintained - RCE via template injection. Migrate to velocity-engine-core 2.3+",
+    "severity": "critical",
+    "cve_ids": ["CVE-2020-13936"]
+  },
+  {
+    "org": "org.thymeleaf",
+    "name": "thymeleaf",
+    "risky_below": "3.1.2.RELEASE",
+    "reason": "SSTI sandbox bypass allowing code execution via crafted HTML templates",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-38286"]
+  },
+  {
+    "org": "com.fasterxml.woodstox",
+    "name": "woodstox-core",
+    "risky_below": "6.4.0",
+    "reason": "DoS via deeply nested DTD subsets and XXE vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2022-40152"]
+  },
+  {
+    "org": "org.dom4j",
+    "name": "dom4j",
+    "risky_below": "2.1.3",
+    "reason": "XXE (XML External Entity) allowing information disclosure and XML injection",
+    "severity": "high",
+    "cve_ids": ["CVE-2020-10683", "CVE-2018-1000632"]
+  },
+  {
+    "org": "xalan",
+    "name": "xalan",
+    "risky_below": "2.7.3",
+    "reason": "Integer truncation in XSLT processing allowing arbitrary bytecode execution",
+    "severity": "high",
+    "cve_ids": ["CVE-2022-34169"]
+  },
+  {
+    "org": "org.apache.xmlgraphics",
+    "name": "batik",
+    "risky_below": "1.17",
+    "reason": "SSRF and RCE via untrusted SVG files executing arbitrary Java code",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-42890"]
+  },
+  {
+    "org": "org.apache.pdfbox",
+    "name": "pdfbox",
+    "risky_below": "2.0.24",
+    "reason": "Infinite loop and OutOfMemory DoS when processing crafted PDF files",
+    "severity": "medium",
+    "cve_ids": ["CVE-2021-27807", "CVE-2021-27906"]
+  },
+  {
+    "org": "com.itextpdf",
+    "name": "itextpdf",
+    "risky_below": "5.5.13.3",
+    "reason": "Command injection and out-of-bounds write vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2021-43113", "CVE-2022-24197"]
+  },
+  {
+    "org": "com.itextpdf",
+    "name": "itext",
+    "risky_below": "7.1.17",
+    "reason": "Command injection allowing arbitrary code execution in PDF processing",
+    "severity": "critical",
+    "cve_ids": ["CVE-2021-43113"]
+  },
+  {
+    "org": "io.netty",
+    "name": "netty-handler",
+    "risky_below": "4.1.94",
+    "reason": "SniHandler 16MB heap allocation DoS during TLS handshake",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-34462"]
+  },
+  {
+    "org": "io.netty",
+    "name": "netty-codec-http2",
+    "risky_below": "4.1.100",
+    "reason": "HTTP/2 rapid reset DoS attack (CVSS 7.5)",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-44487"]
+  },
+  {
+    "org": "org.springframework",
+    "name": "spring-web",
+    "risky_below": "6.0.16",
+    "reason": "DoS in Spring Framework server web component",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-22233"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-configuration",
+    "risky_below": "99.0.0",
+    "reason": "End-of-life - migrate to commons-configuration2 2.8.0+. Vulnerable to RCE via interpolators",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-33980"]
+  },
+  {
+    "org": "dom4j",
+    "name": "dom4j",
+    "risky_below": "99.0.0",
+    "reason": "Legacy groupId - migrate to org.dom4j:dom4j 2.1.3+. XXE and XML injection vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2020-10683", "CVE-2018-1000632"]
+  },
+  {
+    "org": "org.apache.logging.log4j",
+    "name": "log4j-api",
+    "risky_below": "2.17.1",
+    "reason": "Used with log4j-core which has Log4Shell RCE; ensure paired core is also updated",
+    "severity": "critical",
+    "cve_ids": ["CVE-2021-44228"]
+  },
+  {
+    "org": "org.elasticsearch",
+    "name": "elasticsearch",
+    "risky_below": "7.17.13",
+    "reason": "StackOverflow in _search API allowing DoS",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-31419"]
+  },
+  {
+    "org": "com.typesafe.play",
+    "name": "play-ws",
+    "risky_below": "2.8.0",
+    "reason": "HTTP client vulnerabilities inherited from Play Framework < 2.8",
+    "severity": "high",
+    "cve_ids": ["CVE-2019-17598"]
+  },
+  {
+    "org": "com.typesafe.play",
+    "name": "play-cache",
+    "risky_below": "2.8.0",
+    "reason": "Inherited vulnerabilities from Play Framework < 2.8 including CSRF bypass",
+    "severity": "high",
+    "cve_ids": ["CVE-2019-17598"]
+  },
+  {
+    "org": "com.typesafe.play",
+    "name": "play-filters",
+    "risky_below": "2.8.0",
+    "reason": "CSRF and security filter bypass vulnerabilities in Play < 2.8",
+    "severity": "high",
+    "cve_ids": ["CVE-2018-6003"]
+  },
+  {
+    "org": "org.freemarker",
+    "name": "freemarker",
+    "risky_below": "2.3.31",
+    "reason": "Server-side template injection (SSTI) allowing RCE when processing untrusted templates",
+    "severity": "high",
+    "cve_ids": ["CVE-2022-25813"]
+  },
+  {
+    "org": "org.hibernate",
+    "name": "hibernate-core",
+    "risky_below": "5.6.15",
+    "reason": "SQL injection via crafted entity properties in certain configurations",
+    "severity": "high",
+    "cve_ids": ["CVE-2020-25638"]
+  },
+  {
+    "org": "org.springframework",
+    "name": "spring-expression",
+    "risky_below": "5.3.26",
+    "reason": "Spring Expression Language DoS vulnerability",
+    "severity": "medium",
+    "cve_ids": ["CVE-2023-20861"]
+  },
+  {
+    "org": "org.springframework",
+    "name": "spring-webflux",
+    "risky_below": "6.1.3",
+    "reason": "DoS vulnerability in Spring Framework server web",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-22233"]
+  },
+  {
+    "org": "org.springframework.security",
+    "name": "spring-security-web",
+    "risky_below": "6.2.3",
+    "reason": "Authorization bypass of static resources in WebFlux applications",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-22257", "CVE-2024-38821"]
+  },
+  {
+    "org": "org.apache.shiro",
+    "name": "shiro-web",
+    "risky_below": "1.13.0",
+    "reason": "Path traversal authentication bypass when used with Spring Boot or path rewriting",
+    "severity": "critical",
+    "cve_ids": ["CVE-2023-34478", "CVE-2023-46749"]
+  },
+  {
+    "org": "org.apache.shiro",
+    "name": "shiro-core",
+    "risky_below": "1.13.0",
+    "reason": "Authentication bypass vulnerabilities in path matching",
+    "severity": "critical",
+    "cve_ids": ["CVE-2023-46750"]
+  },
+  {
+    "org": "com.fasterxml.jackson.core",
+    "name": "jackson-core",
+    "risky_below": "2.13.0",
+    "reason": "Should be kept in sync with jackson-databind to avoid deserialization vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2020-36518"]
+  },
+  {
+    "org": "org.apache.xmlgraphics",
+    "name": "batik-bridge",
+    "risky_below": "1.17",
+    "reason": "SSRF and arbitrary code execution via untrusted SVG processing",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-42890"]
+  },
+  {
+    "org": "org.apache.xmlgraphics",
+    "name": "batik-script",
+    "risky_below": "1.17",
+    "reason": "Arbitrary Java code execution via JavaScript in SVG files",
+    "severity": "critical",
+    "cve_ids": ["CVE-2022-42890"]
+  },
+  {
+    "org": "org.apache.tomcat.embed",
+    "name": "tomcat-embed-websocket",
+    "risky_below": "9.0.83",
+    "reason": "Request smuggling via improper HTTP trailer header parsing",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-46589"]
+  },
+  {
+    "org": "org.eclipse.jetty",
+    "name": "jetty-client",
+    "risky_below": "9.4.51",
+    "reason": "HTTP/2 resource exhaustion DoS vulnerabilities",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-22201"]
+  },
+  {
+    "org": "org.apache.tika",
+    "name": "tika-parsers",
+    "risky_below": "1.28.5",
+    "reason": "XXE vulnerability in document parsing allowing information disclosure",
+    "severity": "critical",
+    "cve_ids": ["CVE-2025-66516"]
+  },
+  {
+    "org": "org.apache.poi",
+    "name": "poi-ooxml",
+    "risky_below": "5.2.1",
+    "reason": "DoS and information disclosure via crafted OOXML files with duplicate zip entries",
+    "severity": "medium",
+    "cve_ids": ["CVE-2022-26336"]
+  },
+  {
+    "org": "com.google.protobuf",
+    "name": "protobuf-javalite",
+    "risky_below": "3.25.5",
+    "reason": "DoS via stack overflow when parsing nested groups as unknown fields",
+    "severity": "high",
+    "cve_ids": ["CVE-2024-7254"]
+  },
+  {
+    "org": "org.codehaus.woodstox",
+    "name": "woodstox-core-asl",
+    "risky_below": "99.0.0",
+    "reason": "Legacy artifact - migrate to com.fasterxml.woodstox:woodstox-core 6.4.0+. XXE and DTD DoS",
+    "severity": "high",
+    "cve_ids": ["CVE-2022-40152"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-beanutils2",
+    "risky_below": "2.0.0-M2",
+    "reason": "ClassLoader access via enum declaredClass property allowing RCE",
+    "severity": "high",
+    "cve_ids": ["CVE-2019-10086"]
+  },
+  {
+    "org": "org.apache.commons",
+    "name": "commons-fileupload2",
+    "risky_below": "2.0.0-M1",
+    "reason": "DoS via unlimited number of request parts in multipart upload",
+    "severity": "high",
+    "cve_ids": ["CVE-2023-24998"]
   }
 ]

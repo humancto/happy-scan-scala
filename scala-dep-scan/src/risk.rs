@@ -54,13 +54,22 @@ impl RiskEngine {
             if name_match {
                 let dep_ver = parse_version_loose(&dep.version);
                 let threshold = parse_version_loose(&entry.risky_below);
+                let is_dynamic = dep.version.contains('+') || dep.version == "latest.release";
 
                 if let (Some(dv), Some(tv)) = (dep_ver, threshold) {
                     if dv < tv {
+                        let reason = if is_dynamic {
+                            format!(
+                                "{} (declared as '{}', resolved minimum: {})",
+                                entry.reason, dep.version, dv
+                            )
+                        } else {
+                            entry.reason.clone()
+                        };
                         return Some(RiskFlag {
                             dependency: dep.clone(),
                             severity: Severity::from_str(&entry.severity),
-                            reason: entry.reason.clone(),
+                            reason,
                             cve_ids: entry.cve_ids.clone(),
                             risk_type: RiskType::KnownVulnerable,
                             fix_suggestion: Some(format!("Upgrade to >= {}", entry.risky_below)),

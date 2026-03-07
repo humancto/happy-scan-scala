@@ -255,7 +255,8 @@ fn main() -> Result<()> {
     );
 
     // Step 4b: Deep usage analysis (all direct deps)
-    let usage_reports = if cli.unused || cli.fix_unused || !json_mode {
+    // Usage analysis always runs — dead weight detection is a core feature
+    let usage_reports = {
         let pb = make_spinner(
             &cli,
             "Analysing symbol-level usage across all dependencies...",
@@ -275,8 +276,6 @@ fn main() -> Result<()> {
             ),
         );
         reports
-    } else {
-        vec![]
     };
 
     // Handle --fix-unused
@@ -310,14 +309,18 @@ fn main() -> Result<()> {
             &code_refs,
             &graph,
             ignored_count,
+            &usage_reports,
         );
     } else {
+        let private_count =
+            report::count_private_deps(&direct_deps) + report::count_private_deps(&transitive_deps);
         report::print_summary(
             direct_deps.len(),
             transitive_deps.len(),
             &all_flags,
             &root.to_string_lossy(),
             ignored_count,
+            private_count,
         );
 
         // Show multi-module info if detected
@@ -379,7 +382,13 @@ fn main() -> Result<()> {
 
 fn dedup_deps(deps: &mut Vec<Dependency>) {
     let mut seen = std::collections::HashSet::new();
-    deps.retain(|d| seen.insert(d.coord()));
+    deps.retain(|d| {
+        // Normalize dep name by stripping Scala version suffix before comparing,
+        // so that e.g. "play-slick" and "play-slick_2.11" are treated as duplicates.
+        let normalized_name = parser::strip_scala_suffix(&d.name);
+        let key = format!("{}:{}", d.org, normalized_name);
+        seen.insert(key)
+    });
 }
 
 fn make_spinner(cli: &Cli, msg: &str) -> ProgressBar {

@@ -34,16 +34,20 @@ pub fn parse_build_sbt(path: &Path) -> Result<Vec<Dependency>> {
     for cap in re_standard.captures_iter(&content) {
         let org = cap[1].to_string();
         let cross = &cap[2] == "%%";
-        let name = cap[3].to_string();
+        let raw_name = cap[3].to_string();
         let version = cap[4].to_string();
         let scope = cap.get(5).map(|m| m.as_str().to_string());
 
+        // Strip Scala version suffix (e.g. play-slick_2.11 -> play-slick)
+        let stripped_name = strip_scala_suffix(&raw_name);
+        let has_suffix = stripped_name != raw_name;
+
         deps.push(Dependency {
             org: org.clone(),
-            name: name.clone(),
+            name: stripped_name,
             version: version.clone(),
             scope,
-            cross_compiled: cross,
+            cross_compiled: cross || has_suffix,
             source_file: path.to_string_lossy().to_string(),
             is_transitive: false,
         });
@@ -53,19 +57,23 @@ pub fn parse_build_sbt(path: &Path) -> Result<Vec<Dependency>> {
     for cap in re_varver.captures_iter(&content) {
         let org = cap[1].to_string();
         let cross = &cap[2] == "%%";
-        let name = cap[3].to_string();
+        let raw_name = cap[3].to_string();
         let var_name = &cap[4];
+
+        // Strip Scala version suffix
+        let stripped_name = strip_scala_suffix(&raw_name);
+        let has_suffix = stripped_name != raw_name;
 
         if let Some(version) = version_vars.get(var_name) {
             // Avoid duplicates already caught by standard regex
-            let already_found = deps.iter().any(|d| d.org == org && d.name == name);
+            let already_found = deps.iter().any(|d| d.org == org && d.name == stripped_name);
             if !already_found {
                 deps.push(Dependency {
                     org: org.clone(),
-                    name: name.clone(),
+                    name: stripped_name,
                     version: version.clone(),
                     scope: None,
-                    cross_compiled: cross,
+                    cross_compiled: cross || has_suffix,
                     source_file: path.to_string_lossy().to_string(),
                     is_transitive: false,
                 });
@@ -354,8 +362,8 @@ pub fn parse_build_scala(path: &Path) -> Result<Vec<SbtModule>> {
     Ok(modules)
 }
 
-fn strip_scala_suffix(name: &str) -> String {
-    // Remove _2.12, _2.13, _3 etc.
-    let re = Regex::new(r"_2\.\d+$|_3$").unwrap();
+pub fn strip_scala_suffix(name: &str) -> String {
+    // Remove _2.10, _2.11, _2.12, _2.13, _3 etc.
+    let re = Regex::new(r"_2\.\d{1,2}$|_3$").unwrap();
     re.replace(name, "").to_string()
 }
