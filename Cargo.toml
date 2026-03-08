@@ -1,8 +1,16 @@
 [package]
 name = "scala-dep-scan"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
-description = "Dependency risk scanner for Scala/Play projects"
+description = "Fast, zero-dependency Rust CLI for scanning Scala/Play/SBT projects for vulnerable, outdated, and unused dependencies"
+authors = ["humancto"]
+license = "Apache-2.0"
+repository = "https://github.com/humancto/happy-scan-scala"
+homepage = "https://github.com/humancto/happy-scan-scala"
+readme = "README.md"
+keywords = ["scala", "sbt", "security", "vulnerability", "dependency-scanner"]
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.70"
 
 [[bin]]
 name = "scala-dep-scan"

@@ -23,8 +23,8 @@ use types::{Dependency, RiskFlag, Severity, UsageVerdict};
 #[command(
     name = "scala-dep-scan",
     about = "Dependency risk scanner for Scala/Play projects",
-    long_about = "Scans build.sbt and *.sbt.lock files to identify risky dependencies,\nbuild a dependency graph, and locate related code in your project.",
-    version = "0.2.0"
+    long_about = "Scans build.sbt, lock.sbt, and project/*.scala files to identify risky, outdated,\nand unused dependencies, build a dependency graph, and locate related code in your project.",
+    version = "0.3.0"
 )]
 struct Cli {
     /// Path to the Scala project root (default: current directory)
