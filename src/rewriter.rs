@@ -130,7 +130,7 @@ pub fn print_rewrite_summary(results: &[RewriteResult], dry_run: bool) {
     if results.is_empty() {
         println!(
             "{}",
-            "No unused dependencies found in build.sbt files to remove.".dimmed()
+            "No unused dependencies found in build.sbt/lock.sbt files to remove.".dimmed()
         );
         return;
     }

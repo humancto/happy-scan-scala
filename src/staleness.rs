@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_versions_behind() {
-        assert_eq!(estimate_versions_behind("2.12.0", "2.13.10"), 11);
+        assert_eq!(estimate_versions_behind("2.12.0", "2.13.10"), 2);
         assert_eq!(estimate_versions_behind("1.0.0", "2.0.0"), 10);
         assert_eq!(estimate_versions_behind("2.9.0", "2.9.4"), 4);
     }

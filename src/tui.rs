@@ -637,7 +637,7 @@ fn run_event_loop(
 // ──────────────────────────────────────────────────────────────
 
 fn draw_ui(f: &mut Frame, state: &mut TuiState) {
-    let size = f.area();
+    let size = f.size();
 
     // Main layout: header, body, footer
     let main_chunks = Layout::default()
@@ -1142,7 +1142,7 @@ fn export_current_view(state: &TuiState) {
             serde_json::json!({
                 "coord": dep.coord,
                 "version": dep.version,
-                "severity": dep.severity.map(|s| s.label()),
+                "severity": dep.severity.map(|s| s.label().to_string()),
                 "is_transitive": dep.is_transitive,
                 "risk_count": dep.risk_flags.len(),
                 "cve_ids": dep.risk_flags.iter()

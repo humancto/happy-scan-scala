@@ -153,6 +153,39 @@ pub struct DepUsageReport {
     pub symbols_found: Vec<String>,
     /// Total body-level references count
     pub usage_count: usize,
+    /// Source file where this dep is declared (build.sbt, lock.sbt, etc.)
+    pub source_file: String,
+}
+
+/// Classification for transitive (lock.sbt) dependencies
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TransitiveClassification {
+    /// Linked to an active direct dependency (org match, version cluster, or known chain)
+    LinkedTo {
+        parent_coord: String,
+        reason: String,
+    },
+    /// No code references and no link to any active direct dep — likely orphaned
+    LikelyOrphaned,
+    /// Has direct code references (imports or symbol usage)
+    CodeReferenced,
+    /// Identified as a runtime-only dependency
+    RuntimeTransitive,
+}
+
+impl TransitiveClassification {
+    pub fn label(&self) -> &str {
+        match self {
+            TransitiveClassification::LinkedTo { .. } => "LINKED",
+            TransitiveClassification::LikelyOrphaned => "LIKELY-ORPHANED",
+            TransitiveClassification::CodeReferenced => "CODE-REFERENCED",
+            TransitiveClassification::RuntimeTransitive => "RUNTIME",
+        }
+    }
+
+    pub fn is_orphaned(&self) -> bool {
+        matches!(self, TransitiveClassification::LikelyOrphaned)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

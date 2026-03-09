@@ -317,6 +317,7 @@ pub fn print_json_report(
     graph: &DepGraph,
     ignored_count: usize,
     usage_reports: &[crate::types::DepUsageReport],
+    transitive_classifications: &HashMap<String, crate::types::TransitiveClassification>,
 ) {
     use crate::types::UsageVerdict;
     let private_count = count_private_deps(direct) + count_private_deps(transitive);
@@ -342,11 +343,14 @@ pub fn print_json_report(
             "low": flags.iter().filter(|f| f.severity == Severity::Low).count(),
             "unused_deps": unused_count,
             "dead_import_deps": dead_import_count,
+            "orphaned_lock_deps": transitive_classifications.values().filter(|c| c.is_orphaned()).count(),
+            "linked_lock_deps": transitive_classifications.values().filter(|c| !c.is_orphaned()).count(),
         },
         "risk_flags": flags,
         "dependency_usage": usage_reports,
         "code_references": code_refs,
         "graph": serde_json::from_str::<serde_json::Value>(&graph.to_json()).unwrap_or_default(),
+        "transitive_classifications": transitive_classifications,
     });
 
     println!(
@@ -372,8 +376,14 @@ pub fn print_legend() {
     println!();
 }
 
-pub fn print_usage_report(reports: &[crate::types::DepUsageReport]) {
-    use crate::types::UsageVerdict;
+pub fn print_usage_report(
+    reports: &[crate::types::DepUsageReport],
+    transitive_classifications: &std::collections::HashMap<
+        String,
+        crate::types::TransitiveClassification,
+    >,
+) {
+    use crate::types::{TransitiveClassification, UsageVerdict};
     use colored::*;
 
     println!(
@@ -399,11 +409,35 @@ pub fn print_usage_report(reports: &[crate::types::DepUsageReport]) {
         .filter(|r| r.verdict == UsageVerdict::RuntimeOnly)
         .collect();
 
+    // Split unused into direct (build.sbt) and transitive (lock.sbt)
+    let unused_direct_count = unused.iter().filter(|r| r.is_direct).count();
+
+    // Classify lock.sbt unused deps into orphaned vs linked
+    let unused_lock: Vec<_> = unused.iter().filter(|r| !r.is_direct).collect();
+    let orphaned_lock: Vec<_> = unused_lock
+        .iter()
+        .filter(|r| {
+            transitive_classifications
+                .get(&r.coord)
+                .map(|c| c.is_orphaned())
+                .unwrap_or(true)
+        })
+        .collect();
+    let linked_lock: Vec<_> = unused_lock
+        .iter()
+        .filter(|r| {
+            transitive_classifications
+                .get(&r.coord)
+                .map(|c| !c.is_orphaned())
+                .unwrap_or(false)
+        })
+        .collect();
+
     // Summary bar
-    println!(
+    print!(
         "  {}  {}   {}  {}   {}  {}   {}  {}",
         "💀".red(),
-        format!("{} Unused", unused.len()).red().bold(),
+        format!("{} Unused", unused_direct_count).red().bold(),
         "👻".yellow(),
         format!("{} Dead import", dead.len()).yellow().bold(),
         "✅".green(),
@@ -411,32 +445,173 @@ pub fn print_usage_report(reports: &[crate::types::DepUsageReport]) {
         "⚙️ ".dimmed(),
         format!("{} Runtime", runtime.len()).dimmed(),
     );
+    if !orphaned_lock.is_empty() {
+        print!(
+            "   {}  {}",
+            "🗑️ ".red(),
+            format!("{} Orphaned in lock.sbt", orphaned_lock.len()).red(),
+        );
+    }
+    if !linked_lock.is_empty() {
+        print!(
+            "   {}  {}",
+            "🔒".dimmed(),
+            format!("{} Linked transitive", linked_lock.len()).dimmed(),
+        );
+    }
+    println!();
+
+    // Count ALL lock.sbt deps that are linked (not just unused ones)
+    let all_linked_lock_count = reports
+        .iter()
+        .filter(|r| {
+            !r.is_direct
+                && transitive_classifications
+                    .get(&r.coord)
+                    .map(|c| !c.is_orphaned())
+                    .unwrap_or(false)
+        })
+        .count();
+    let linked_no_code_count = linked_lock.len(); // these are linked + Unused verdict
+    if linked_no_code_count > 0 && all_linked_lock_count > 0 {
+        println!(
+            "  {}",
+            format!(
+                "  Note: {} of {} linked transitive deps have zero code evidence (no imports, no symbols).",
+                linked_no_code_count,
+                all_linked_lock_count
+            )
+            .dimmed()
+        );
+        println!(
+            "  {}",
+            "  These are kept because they're linked to active deps, but may be removable."
+                .dimmed()
+        );
+    }
     println!();
 
     // Unused deps — never imported, never referenced
     if !unused.is_empty() {
-        println!(
-            "{}",
-            "  💀  UNUSED — no imports, no symbol references found"
-                .red()
-                .bold()
-        );
-        println!(
-            "{}",
-            "  ─────────────────────────────────────────────────────".dimmed()
-        );
-        for r in &unused {
+        let unused_direct: Vec<_> = unused.iter().filter(|r| r.is_direct).collect();
+
+        if !unused_direct.is_empty() {
             println!(
-                "  {} {}",
-                "✗".red().bold(),
-                format!("{}:{}", r.coord, r.version).red()
+                "{}",
+                "  💀  UNUSED IN build.sbt — no imports, no symbol references found"
+                    .red()
+                    .bold()
             );
             println!(
-                "    {} Remove from build.sbt to reduce attack surface & build time",
-                "→".dimmed()
+                "{}",
+                "  ─────────────────────────────────────────────────────".dimmed()
             );
+            for r in &unused_direct {
+                println!(
+                    "  {} {}",
+                    "✗".red().bold(),
+                    format!("{}:{}", r.coord, r.version).red()
+                );
+                let source_hint = if !r.source_file.is_empty() {
+                    let fname = std::path::Path::new(&r.source_file)
+                        .file_name()
+                        .map(|f| f.to_string_lossy().to_string())
+                        .unwrap_or_else(|| r.source_file.clone());
+                    format!(" (declared in {})", fname)
+                } else {
+                    String::new()
+                };
+                println!(
+                    "    {} Safe to remove{} — reduces attack surface & build time",
+                    "→".dimmed(),
+                    source_hint
+                );
+            }
+            println!();
         }
-        println!();
+
+        // Orphaned lock.sbt entries — no code refs AND no link to active deps
+        if !orphaned_lock.is_empty() {
+            println!(
+                "{}",
+                "  🗑️  LIKELY ORPHANED IN lock.sbt — no code usage, no link to active dependencies"
+                    .red()
+                    .bold()
+            );
+            println!(
+                "{}",
+                "  ─────────────────────────────────────────────────────".dimmed()
+            );
+            println!(
+                "{}",
+                "  These pinned versions have no code references AND no org/version link to your"
+                    .dimmed()
+            );
+            println!(
+                "{}",
+                "  active direct deps. Removing the pin lets SBT resolve the version (or drop it)."
+                    .dimmed()
+            );
+            println!();
+            for r in &orphaned_lock {
+                println!(
+                    "  {} {}",
+                    "✗".red().bold(),
+                    format!("{}:{}", r.coord, r.version).red()
+                );
+                println!(
+                    "    {} Likely safe to remove — verify with `sbt dependencyTree` to confirm",
+                    "→".dimmed(),
+                );
+            }
+            println!();
+        }
+
+        // Linked lock.sbt entries — no direct code refs but linked to active deps
+        if !linked_lock.is_empty() {
+            println!(
+                "{}",
+                "  🔒  LINKED TRANSITIVE IN lock.sbt — no direct code usage but linked to active deps"
+                    .dimmed()
+                    .bold()
+            );
+            println!(
+                "{}",
+                "  ─────────────────────────────────────────────────────".dimmed()
+            );
+            println!(
+                "{}",
+                "  These are transitive dependencies of your active direct deps. The version pin"
+                    .dimmed()
+            );
+            println!(
+                "{}",
+                "  in lock.sbt ensures a specific version. Removing the pin lets SBT choose."
+                    .dimmed()
+            );
+            println!();
+            for r in &linked_lock {
+                let reason = transitive_classifications
+                    .get(&r.coord)
+                    .and_then(|c| match c {
+                        TransitiveClassification::LinkedTo {
+                            parent_coord,
+                            reason,
+                        } => Some(format!("{} ({})", parent_coord, reason)),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                println!(
+                    "  {} {}",
+                    "·".dimmed(),
+                    format!("{}:{}", r.coord, r.version).dimmed()
+                );
+                if !reason.is_empty() {
+                    println!("    {} Linked to: {}", "↳".dimmed(), reason.dimmed());
+                }
+            }
+            println!();
+        }
     }
 
     // Dead imports — imported but symbols never used in file body

@@ -1,6 +1,6 @@
 [package]
 name = "scala-dep-scan"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Fast, zero-dependency Rust CLI for scanning Scala/Play/SBT projects for vulnerable, outdated, and unused dependencies"
 authors = ["humancto"]
@@ -29,6 +29,8 @@ semver = "1"
 anyhow = "1"
 serde_yaml = "0.9"
 ureq = { version = "2", features = ["json"] }
+crossterm = "0.27"
+ratatui = "0.26"
 
 [profile.release]
 opt-level = 3

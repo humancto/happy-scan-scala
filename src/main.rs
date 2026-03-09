@@ -1,10 +1,20 @@
+mod advisor;
+mod ci_templates;
 mod config;
+mod diff;
 mod graph;
+mod html_report;
+mod license;
+mod orphan;
 mod parser;
+mod policy;
 mod report;
 mod rewriter;
 mod risk;
+mod sbom;
 mod scanner;
+mod staleness;
+mod tui;
 mod types;
 
 use anyhow::{Context, Result};
@@ -24,7 +34,7 @@ use types::{Dependency, RiskFlag, Severity, UsageVerdict};
     name = "scala-dep-scan",
     about = "Dependency risk scanner for Scala/Play projects",
     long_about = "Scans build.sbt, lock.sbt, and project/*.scala files to identify risky, outdated,\nand unused dependencies, build a dependency graph, and locate related code in your project.",
-    version = "0.3.0"
+    version = "0.4.0"
 )]
 struct Cli {
     /// Path to the Scala project root (default: current directory)
@@ -75,7 +85,7 @@ struct Cli {
     #[arg(long = "init", default_value_t = false)]
     init: bool,
 
-    /// Auto-remove unused dependencies from build.sbt (comments them out)
+    /// Auto-remove unused dependencies from build.sbt and lock.sbt (comments them out)
     #[arg(long = "fix-unused", default_value_t = false)]
     fix_unused: bool,
 
@@ -86,10 +96,65 @@ struct Cli {
     /// Bypass the OSV response cache (~/.cache/scala-dep-scan/osv/)
     #[arg(long = "no-cache", default_value_t = false)]
     no_cache: bool,
+
+    /// Generate SBOM in the given format (cyclonedx or spdx)
+    #[arg(long = "sbom")]
+    sbom: Option<String>,
+
+    /// Output path for the SBOM file (default: stdout)
+    #[arg(long = "sbom-output")]
+    sbom_output: Option<PathBuf>,
+
+    /// Generate an HTML dashboard report at the given path
+    #[arg(long = "html")]
+    html: Option<PathBuf>,
+
+    /// Show license compliance information for all dependencies
+    #[arg(long = "license", default_value_t = false)]
+    license: bool,
+
+    /// Enforce a license policy (e.g. "allow:MIT,Apache-2.0 deny:GPL-3.0")
+    #[arg(long = "license-policy")]
+    license_policy: Option<String>,
+
+    /// Show dependency staleness report
+    #[arg(long = "staleness", default_value_t = false)]
+    staleness: bool,
+
+    /// Show upgrade path recommendations
+    #[arg(long = "upgrade-plan", default_value_t = false)]
+    upgrade_plan: bool,
+
+    /// Evaluate dependencies against a policy YAML file
+    #[arg(long = "policy")]
+    policy: Option<PathBuf>,
+
+    /// Save current scan results as a baseline for future comparison
+    #[arg(long = "save-baseline")]
+    save_baseline: Option<PathBuf>,
+
+    /// Compare current scan against a saved baseline file
+    #[arg(long = "compare")]
+    compare: Option<PathBuf>,
+
+    /// Generate a CI configuration template (github or gitlab)
+    #[arg(long = "generate-ci")]
+    generate_ci: Option<String>,
+
+    /// Launch interactive TUI explorer
+    #[arg(long = "tui", default_value_t = false)]
+    tui: bool,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Handle --generate-ci early (no project scan needed)
+    if let Some(ref platform) = cli.generate_ci {
+        let template = ci_templates::generate_ci_template(platform);
+        println!("{}", template);
+        return Ok(());
+    }
 
     let root = cli
         .path
@@ -108,7 +173,7 @@ fn main() -> Result<()> {
         cfg.severity_threshold()
     };
 
-    if !json_mode {
+    if !json_mode && !cli.tui {
         report::print_header();
     }
 
@@ -254,15 +319,16 @@ fn main() -> Result<()> {
         &format!("{} code references found across risky deps", total_refs),
     );
 
-    // Step 4b: Deep usage analysis (all direct deps)
+    // Step 4b: Deep usage analysis (all deps — direct + transitive from lock.sbt)
     // Usage analysis always runs — dead weight detection is a core feature
     let usage_reports = {
         let pb = make_spinner(
             &cli,
             "Analysing symbol-level usage across all dependencies...",
         );
-        let all_direct: Vec<Dependency> = direct_deps.clone();
-        let reports = scanner::scan_usage(&root, &all_direct).unwrap_or_default();
+        let mut all_for_usage: Vec<Dependency> = direct_deps.clone();
+        all_for_usage.extend(transitive_deps.clone());
+        let reports = scanner::scan_usage(&root, &all_for_usage).unwrap_or_default();
         let unused_count = reports
             .iter()
             .filter(|r| r.verdict == UsageVerdict::Unused || r.verdict == UsageVerdict::DeadImport)
@@ -278,6 +344,28 @@ fn main() -> Result<()> {
         reports
     };
 
+    // Step 4c: Classify transitive deps (orphan detection)
+    let transitive_classifications = if !transitive_deps.is_empty() {
+        let pb = make_spinner(&cli, "Classifying lock.sbt transitive dependencies...");
+        let classifications =
+            orphan::classify_transitive_deps(&direct_deps, &transitive_deps, &usage_reports);
+        let orphaned_count = classifications.values().filter(|c| c.is_orphaned()).count();
+        let linked_count = classifications
+            .values()
+            .filter(|c| matches!(c, types::TransitiveClassification::LinkedTo { .. }))
+            .count();
+        finish_spinner(
+            &pb,
+            &format!(
+                "{} linked to active deps, {} likely orphaned",
+                linked_count, orphaned_count
+            ),
+        );
+        classifications
+    } else {
+        std::collections::HashMap::new()
+    };
+
     // Handle --fix-unused
     if cli.fix_unused {
         let unused_reports: Vec<&types::DepUsageReport> = usage_reports
@@ -285,8 +373,10 @@ fn main() -> Result<()> {
             .filter(|r| r.verdict == UsageVerdict::Unused)
             .collect();
 
-        let results =
-            rewriter::fix_unused(&root, &unused_reports, &project.build_files, cli.dry_run)?;
+        // Collect both build.sbt and lock.sbt files for removal
+        let mut all_dep_files = project.build_files.clone();
+        all_dep_files.extend(project.lock_files.clone());
+        let results = rewriter::fix_unused(&root, &unused_reports, &all_dep_files, cli.dry_run)?;
         rewriter::print_rewrite_summary(&results, cli.dry_run);
 
         if !cli.dry_run && !results.is_empty() {
@@ -300,6 +390,269 @@ fn main() -> Result<()> {
     let graph = DepGraph::build_from_deps(&direct_deps, &transitive_deps, &risk_map);
     finish_spinner(&pb, "Dependency graph built");
 
+    // ── Policy evaluation ────────────────────────────────────────────────
+    if let Some(ref policy_path) = cli.policy {
+        let pe = policy::PolicyEngine::load(policy_path.as_path())
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        if pe.policy_count() > 0 {
+            let mut policy_violations = Vec::new();
+            for dep in all_deps.iter() {
+                let ctx = policy::DepContext {
+                    org: dep.org.clone(),
+                    name: dep.name.clone(),
+                    version: dep.version.clone(),
+                    coord: dep.coord(),
+                    version_age_months: None,
+                    license: String::new(),
+                    is_direct: !dep.is_transitive,
+                };
+                policy_violations.extend(pe.evaluate(&ctx));
+            }
+            if !policy_violations.is_empty() && !json_mode {
+                println!(
+                    "\n{}",
+                    "== Policy Violations ======================================================="
+                        .cyan()
+                );
+                for v in &policy_violations {
+                    println!(
+                        "  [{:>8}] {} - {} (policy: {})",
+                        v.severity.to_uppercase(),
+                        v.coord,
+                        v.reason,
+                        v.policy_name
+                    );
+                }
+                println!();
+            }
+        }
+    }
+
+    // ── License scanning ─────────────────────────────────────────────────
+    if cli.license || cli.license_policy.is_some() {
+        let license_deps: Vec<license::LicenseDep> = all_deps
+            .iter()
+            .map(|d| license::LicenseDep {
+                org: d.org.clone(),
+                name: d.name.clone(),
+                version: d.version.clone(),
+            })
+            .collect();
+
+        let cache_dir = dirs_cache_path("license");
+        let mut cache = license::LicenseCache::new(Some(cache_dir));
+        let license_results = license::scan_licenses(&license_deps, &mut cache);
+
+        let mut violations = Vec::new();
+        if let Some(ref policy_str) = cli.license_policy {
+            let lp = license::LicensePolicy::from_str(policy_str);
+            for info in &license_results {
+                if let Some(v) = lp.check(info) {
+                    violations.push(v);
+                }
+            }
+        }
+
+        if json_mode {
+            println!(
+                "{}",
+                license::format_license_json(&license_results, &violations)
+            );
+        } else {
+            print!(
+                "{}",
+                license::format_license_report(&license_results, &violations)
+            );
+        }
+    }
+
+    // ── Staleness report ─────────────────────────────────────────────────
+    if cli.staleness {
+        let staleness_deps: Vec<staleness::StalenessDep> = all_deps
+            .iter()
+            .map(|d| staleness::StalenessDep {
+                org: d.org.clone(),
+                name: d.name.clone(),
+                version: d.version.clone(),
+            })
+            .collect();
+
+        let staleness_reports = staleness::scan_staleness(&staleness_deps);
+
+        if json_mode {
+            println!("{}", staleness::format_staleness_json(&staleness_reports));
+        } else {
+            print!("{}", staleness::format_staleness_report(&staleness_reports));
+        }
+    }
+
+    // ── Upgrade plan ─────────────────────────────────────────────────────
+    if cli.upgrade_plan {
+        let advisor_deps: Vec<advisor::AdvisorDep> = all_deps
+            .iter()
+            .map(|d| {
+                let ref_count = code_refs.get(&d.coord()).map(|v| v.len()).unwrap_or(0);
+                advisor::AdvisorDep {
+                    org: d.org.clone(),
+                    name: d.name.clone(),
+                    version: d.version.clone(),
+                    code_ref_count: ref_count,
+                }
+            })
+            .collect();
+
+        let ref_counts: HashMap<String, usize> = code_refs
+            .iter()
+            .map(|(k, v)| (k.clone(), v.len()))
+            .collect();
+
+        let recommendations = advisor::generate_upgrade_plan(&advisor_deps, &ref_counts);
+
+        if json_mode {
+            println!("{}", advisor::format_upgrade_json(&recommendations));
+        } else {
+            print!("{}", advisor::format_upgrade_plan(&recommendations));
+        }
+    }
+
+    // ── SBOM generation ──────────────────────────────────────────────────
+    if let Some(ref sbom_format_str) = cli.sbom {
+        let sbom_fmt = sbom::SbomFormat::from_str(sbom_format_str).unwrap_or_else(|| {
+            eprintln!(
+                "{}",
+                format!(
+                    "Unknown SBOM format '{}'. Supported: cyclonedx, spdx",
+                    sbom_format_str
+                )
+                .red()
+            );
+            std::process::exit(1);
+        });
+
+        let sbom_deps: Vec<sbom::SbomDependency> = all_deps
+            .iter()
+            .map(|d| sbom::SbomDependency {
+                org: d.org.clone(),
+                name: d.name.clone(),
+                version: d.version.clone(),
+                is_direct: !d.is_transitive,
+                scope: d.scope.clone(),
+            })
+            .collect();
+
+        let project_name = root
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "scala-project".to_string());
+
+        let sbom_output =
+            sbom::generate_sbom(sbom_fmt, &sbom_deps, &[], &HashMap::new(), &project_name);
+
+        if let Some(ref out_path) = cli.sbom_output {
+            fs::write(out_path, &sbom_output)
+                .with_context(|| format!("Failed to write SBOM to {}", out_path.display()))?;
+            if !json_mode {
+                println!(
+                    "{} {}",
+                    "SBOM written to".green(),
+                    out_path.display().to_string().yellow()
+                );
+            }
+        } else {
+            println!("{}", sbom_output);
+        }
+    }
+
+    // ── Save baseline ────────────────────────────────────────────────────
+    if let Some(ref baseline_path) = cli.save_baseline {
+        let flags_json = serde_json::to_value(&all_flags).unwrap_or_default();
+        diff::save_baseline(
+            baseline_path.as_path(),
+            &flags_json,
+            direct_deps.len(),
+            transitive_deps.len(),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        if !json_mode {
+            println!(
+                "{} {}",
+                "Baseline saved to".green(),
+                baseline_path.display().to_string().yellow()
+            );
+        }
+    }
+
+    // ── Compare against baseline ─────────────────────────────────────────
+    if let Some(ref compare_path) = cli.compare {
+        let baseline =
+            diff::load_baseline(compare_path.as_path()).map_err(|e| anyhow::anyhow!("{}", e))?;
+        let current_flags_json = serde_json::to_value(&all_flags).unwrap_or_default();
+        let diff_result = diff::compare(
+            &baseline,
+            &current_flags_json,
+            direct_deps.len(),
+            transitive_deps.len(),
+        );
+
+        if json_mode {
+            println!("{}", diff::diff_to_json(&diff_result));
+        } else {
+            println!(
+                "\n{}",
+                "== Scan Comparison ========================================================="
+                    .cyan()
+            );
+            println!("{}", diff_result.summary());
+        }
+    }
+
+    // ── HTML report ──────────────────────────────────────────────────────
+    if let Some(ref html_path) = cli.html {
+        let graph_json_str = graph.to_json();
+        let report_data = serde_json::json!({
+            "direct_deps": &direct_deps,
+            "transitive_deps": &transitive_deps,
+            "risk_flags": &all_flags,
+            "code_refs": &code_refs,
+            "usage": &usage_reports,
+            "graph_json": &graph_json_str,
+        });
+        let html_content = html_report::generate_html_report(&report_data);
+        fs::write(html_path, &html_content)
+            .with_context(|| format!("Failed to write HTML report to {}", html_path.display()))?;
+        if !json_mode {
+            println!(
+                "{} {}",
+                "HTML report written to".green(),
+                html_path.display().to_string().yellow()
+            );
+        }
+    }
+
+    // ── TUI mode ─────────────────────────────────────────────────────────
+    if cli.tui {
+        let report_json = serde_json::json!({
+            "summary": {
+                "direct_deps": direct_deps.len(),
+                "transitive_deps": transitive_deps.len(),
+                "total_flags": all_flags.len(),
+                "ignored_flags": ignored_count,
+                "critical": all_flags.iter().filter(|f| f.severity == Severity::Critical).count(),
+                "high": all_flags.iter().filter(|f| f.severity == Severity::High).count(),
+                "medium": all_flags.iter().filter(|f| f.severity == Severity::Medium).count(),
+                "low": all_flags.iter().filter(|f| f.severity == Severity::Low).count(),
+            },
+            "risk_flags": &all_flags,
+            "dependency_usage": &usage_reports,
+            "code_references": &code_refs,
+            "graph": serde_json::from_str::<serde_json::Value>(&graph.to_json()).unwrap_or_default(),
+        });
+        let json_string =
+            serde_json::to_string_pretty(&report_json).unwrap_or_else(|_| "{}".to_string());
+        tui::run_tui(&json_string).map_err(|e| anyhow::anyhow!("{}", e))?;
+        return Ok(());
+    }
+
     // Step 6: Output
     if json_mode {
         report::print_json_report(
@@ -310,6 +663,7 @@ fn main() -> Result<()> {
             &graph,
             ignored_count,
             &usage_reports,
+            &transitive_classifications,
         );
     } else {
         let private_count =
@@ -338,7 +692,7 @@ fn main() -> Result<()> {
 
         report::print_risk_flags(&all_flags, &code_refs, &min_severity);
 
-        report::print_usage_report(&usage_reports);
+        report::print_usage_report(&usage_reports, &transitive_classifications);
 
         report::print_legend();
     }
@@ -378,6 +732,12 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Helper to get a cache directory path under ~/.cache/scala-dep-scan/
+fn dirs_cache_path(subdir: &str) -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    format!("{}/.cache/scala-dep-scan/{}", home, subdir)
 }
 
 fn dedup_deps(deps: &mut Vec<Dependency>) {

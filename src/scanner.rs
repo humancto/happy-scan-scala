@@ -41,8 +41,16 @@ const RUNTIME_PATTERNS: &[(&str, &str)] = &[
     ("com.typesafe.play", "play-server"),
     ("com.typesafe.play", "play-netty-server"),
     ("com.typesafe.play", "play-akka-http-server"),
-    ("org.flywaydb", ""),  // DB migrations — runtime
-    ("org.liquibase", ""), // DB migrations — runtime
+    ("org.flywaydb", ""),                           // DB migrations — runtime
+    ("org.liquibase", ""),                          // DB migrations — runtime
+    ("com.h2database", ""),                         // H2 JDBC driver — loaded via config
+    ("org.postgresql", "postgresql"),               // PostgreSQL JDBC driver — loaded via config
+    ("mysql", "mysql-connector-java"),              // MySQL JDBC driver — loaded via config
+    ("com.typesafe.play", "play-slick-evolutions"), // DB evolutions — runtime
+    ("com.typesafe.play", "play-jdbc-evolutions"),  // DB evolutions — runtime
+    ("org.playframework", "play-slick-evolutions"), // DB evolutions (new org) — runtime
+    ("org.playframework", "play-slick"),            // Slick integration — runtime config
+    ("org.webjars", ""), // WebJars — referenced in HTML templates, not Scala imports
 ];
 
 /// Expanded mapping of Maven coordinates to Java/Scala package prefixes AND
@@ -895,21 +903,17 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
     let mut reports: Vec<DepUsageReport> = Vec::new();
 
     for (coord, dep, _profile) in &dep_profiles {
-        // Skip transitive deps from usage report — focus on direct
-        if dep.is_transitive {
-            continue;
-        }
-
         if is_runtime_only(&dep.org, &dep.name) {
             reports.push(DepUsageReport {
                 coord: coord.clone(),
                 version: dep.version.clone(),
-                is_direct: true,
+                is_direct: !dep.is_transitive,
                 verdict: UsageVerdict::RuntimeOnly,
                 import_files: vec![],
                 usage_files: vec![],
                 symbols_found: vec![],
                 usage_count: 0,
+                source_file: dep.source_file.clone(),
             });
             continue;
         }
@@ -986,6 +990,7 @@ pub fn scan_usage(root: &Path, deps: &[Dependency]) -> Result<Vec<DepUsageReport
             usage_files,
             symbols_found,
             usage_count: total_usage,
+            source_file: dep.source_file.clone(),
         });
     }
 
@@ -1035,6 +1040,18 @@ fn build_fallback_search_terms(org: &str, name: &str) -> Vec<String> {
     // For deps with org that looks like a Java package, try org.name as import prefix
     // e.g. "com.siftscience:sift-java" -> check for "com.siftscience"
     // Already covered by org above
+
+    // Strip common suffixes from internal deps: "accountserviceclient" -> "accountservice"
+    // These are common patterns where the artifact name has a suffix but the package doesn't.
+    let suffixes = ["client", "models", "commons", "utils", "core", "api"];
+    for suffix in &suffixes {
+        if name.len() > suffix.len() + 3 && name.ends_with(suffix) {
+            let base = &name[..name.len() - suffix.len()];
+            if base.len() >= 4 && !terms.contains(&base.to_string()) {
+                terms.push(base.to_string());
+            }
+        }
+    }
 
     terms
 }
